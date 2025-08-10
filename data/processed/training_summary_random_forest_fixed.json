@@ -1,0 +1,171 @@
+{
+  "training": {
+    "model_type": "random_forest",
+    "training_time": "0:00:00.309473",
+    "training_samples": 35,
+    "validation_samples": 15,
+    "feature_count": 170,
+    "target_classes": 50,
+    "validation_accuracy": 0.0,
+    "validation_top5_accuracy": 0.06666666666666667,
+    "validation_top10_accuracy": 0.13333333333333333,
+    "validation_precision": 0.0,
+    "validation_recall": 0.0,
+    "validation_f1": 0.0,
+    "model_params": {
+      "n_estimators": 300,
+      "max_depth": 20,
+      "min_samples_split": 10,
+      "min_samples_leaf": 5,
+      "max_features": "sqrt",
+      "random_state": 42,
+      "n_jobs": -1,
+      "class_weight": "balanced_subsample"
+    }
+  },
+  "evaluation": {
+    "test_accuracy": 0.0,
+    "test_top5_accuracy": 0.13636363636363635,
+    "test_top10_accuracy": 0.3181818181818182,
+    "test_precision": 0.0,
+    "test_recall": 0.0,
+    "test_f1": 0.0,
+    "top_heroes_accuracy": {
+      "Juggernaut": {
+        "accuracy": 0.0,
+        "samples": "2"
+      },
+      "Sniper": {
+        "accuracy": 0.0,
+        "samples": "2"
+      },
+      "Slark": {
+        "accuracy": 0.0,
+        "samples": "2"
+      },
+      "Axe": {
+        "accuracy": 0.0,
+        "samples": "1"
+      },
+      "Sven": {
+        "accuracy": 0.0,
+        "samples": "1"
+      },
+      "Slardar": {
+        "accuracy": 0.0,
+        "samples": "1"
+      },
+      "Queen of Pain": {
+        "accuracy": 0.0,
+        "samples": "1"
+      },
+      "Viper": {
+        "accuracy": 0.0,
+        "samples": "1"
+      },
+      "Luna": {
+        "accuracy": 0.0,
+        "samples": "1"
+      },
+      "Clinkz": {
+        "accuracy": 0.0,
+        "samples": "1"
+      }
+    },
+    "confusion_matrix_shape": [
+      31,
+      31
+    ]
+  },
+  "feature_importance": {
+    "top_features": [
+      {
+        "feature": "team_size",
+        "importance": 0.07982227307199431
+      },
+      {
+        "feature": "total_heroes_picked",
+        "importance": 0.07108152494027516
+      },
+      {
+        "feature": "duration",
+        "importance": 0.0710161202195433
+      },
+      {
+        "feature": "enemy_role_diversity",
+        "importance": 0.06960924364135854
+      },
+      {
+        "feature": "team_side_radiant",
+        "importance": 0.06587593089653733
+      },
+      {
+        "feature": "enemy_size",
+        "importance": 0.06433939563939808
+      },
+      {
+        "feature": "pick_position_2",
+        "importance": 0.05681304664946103
+      },
+      {
+        "feature": "enemy_versatile_count",
+        "importance": 0.05582263694217287
+      },
+      {
+        "feature": "enemy_hero_3_none",
+        "importance": 0.05433847860261145
+      },
+      {
+        "feature": "team_hero_3_none",
+        "importance": 0.04115776173519846
+      },
+      {
+        "feature": "team_role_diversity",
+        "importance": 0.038238448235706934
+      },
+      {
+        "feature": "team_side_dire",
+        "importance": 0.03494181328606649
+      },
+      {
+        "feature": "target_is_versatile",
+        "importance": 0.03430578363266018
+      },
+      {
+        "feature": "team_versatile_count",
+        "importance": 0.03199841692472637
+      },
+      {
+        "feature": "pick_phase_mid",
+        "importance": 0.0312993533075901
+      },
+      {
+        "feature": "team_won",
+        "importance": 0.029309740233057307
+      },
+      {
+        "feature": "enemy_hero_2_none",
+        "importance": 0.0246151760479316
+      },
+      {
+        "feature": "pick_phase_early",
+        "importance": 0.024586255368475005
+      },
+      {
+        "feature": "team_hero_2_none",
+        "importance": 0.024169212295823257
+      },
+      {
+        "feature": "pick_position_3",
+        "importance": 0.02104221486189655
+      }
+    ],
+    "grouped_importance": {
+      "other": 0.7652322330359308,
+      "enemy_composition": 0.08371991435687198,
+      "team_composition": 0.08955671488700304,
+      "role_features": 0.06149113772019435
+    }
+  },
+  "model_path": "models/hero_predictor_random_forest_fixed.pkl"
+}
