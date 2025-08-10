@@ -7,8 +7,6 @@ Maximizes OpenDota API rate limits (1200 calls/minute = 20/second)
 import requests
 import json
 import time
-import asyncio
-import aiohttp
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import os
