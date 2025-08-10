@@ -323,11 +323,10 @@ class HeroFeatureExtractor:
         # Create a copy for processing
         ml_df = features_df.copy()
         
-        # Hero ID categorical features
+        # Hero ID categorical features (exclude target_hero from encoding)
         hero_columns = [col for col in ml_df.columns if 'hero_' in col and col.endswith(('_1', '_2', '_3', '_4'))]
-        hero_columns.append('target_hero')
         
-        # Convert hero IDs to categorical
+        # Convert hero IDs to categorical (but keep target_hero as numeric)
         for col in hero_columns:
             if col in ml_df.columns:
                 ml_df[col] = ml_df[col].astype('category')

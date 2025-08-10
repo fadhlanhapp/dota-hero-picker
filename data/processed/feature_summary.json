@@ -1,10 +1,10 @@
 {
   "total_samples": 72,
   "unique_matches": 9,
-  "unique_heroes_as_targets": 57,
+  "unique_heroes_as_targets": 50,
   "win_rate_distribution": {
-    "1": 36,
-    "0": 36
+    "0": 36,
+    "1": 36
   },
   "pick_position_distribution": {
     "1": 18,
@@ -17,9 +17,9 @@
     "dire": 36
   },
   "duration_stats": {
-    "mean": 1239.0,
-    "median": 1199.0,
-    "std": 160.4606046162198
+    "mean": 1083.7777777777778,
+    "median": 1171.0,
+    "std": 279.85218544153025
   },
   "feature_columns": [
     "match_id",
@@ -73,15 +73,15 @@
     "pick_phase"
   ],
   "top_target_heroes": {
-    "Zeus": 3,
-    "Earthshaker": 3,
-    "Witch Doctor": 2,
-    "Doom": 2,
-    "Queen of Pain": 2,
-    "Nyx Assassin": 2,
-    "Techies": 2,
-    "Storm Spirit": 2,
-    "Venomancer": 2,
-    "Tidehunter": 2
+    "Slark": 4,
+    "Night Stalker": 3,
+    "Witch Doctor": 3,
+    "Ember Spirit": 3,
+    "Sniper": 3,
+    "Luna": 3,
+    "Juggernaut": 3,
+    "Spectre": 2,
+    "Rubick": 2,
+    "Invoker": 2
   }
 }
