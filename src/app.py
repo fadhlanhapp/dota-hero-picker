@@ -87,7 +87,9 @@ def predict_heroes():
     {
         "team_heroes": [1, 2, 3],  // List of hero IDs on your team
         "enemy_heroes": [4, 5, 6],  // List of hero IDs on enemy team
-        "top_k": 5  // Number of recommendations (optional, default 5)
+        "top_k": 5,  // Number of recommendations (optional, default 5)
+        "skill_level": "High",  // Skill bracket filter (optional)
+        "patch": "7.35"  // Game patch filter (optional)
     }
     """
     try:
@@ -107,6 +109,8 @@ def predict_heroes():
         team_heroes = data.get('team_heroes', [])
         enemy_heroes = data.get('enemy_heroes', [])
         top_k = data.get('top_k', 5)
+        skill_level = data.get('skill_level', None)
+        patch = data.get('patch', None)
         
         # Validate input
         if not isinstance(team_heroes, list) or not isinstance(enemy_heroes, list):
@@ -136,8 +140,8 @@ def predict_heroes():
                 'error': 'Duplicate heroes detected'
             }), 400
         
-        # Make prediction
-        recommendations = predictor.predict_heroes(team_heroes, enemy_heroes, top_k)
+        # Make prediction with filters
+        recommendations = predictor.predict_heroes(team_heroes, enemy_heroes, top_k, skill_level, patch)
         
         # Prepare response
         response = {
@@ -145,6 +149,10 @@ def predict_heroes():
             'recommendations': recommendations,
             'team_size': len(team_heroes),
             'enemy_size': len(enemy_heroes),
+            'filters': {
+                'skill_level': skill_level,
+                'patch': patch
+            },
             'timestamp': datetime.now().isoformat()
         }
         
@@ -187,6 +195,26 @@ def get_hero(hero_id):
     
     except Exception as e:
         logger.error(f"Error getting hero {hero_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/metadata', methods=['GET'])
+def get_metadata():
+    """Get available skill levels, patches, and other metadata"""
+    try:
+        if not predictor:
+            return jsonify({'error': 'Service not available'}), 503
+        
+        metadata = predictor.get_metadata()
+        return jsonify({
+            'success': True,
+            'metadata': metadata
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting metadata: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

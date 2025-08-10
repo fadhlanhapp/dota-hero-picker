@@ -181,6 +181,64 @@
             margin: 30px 0;
         }
         
+        .filters-section {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .filters-section h3 {
+            color: #4ecdc4;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 200px;
+        }
+        
+        .filter-item label {
+            color: #a0a0a0;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 180px;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .filter-select option {
+            background: #2d2d44;
+            color: #fff;
+        }
+        
         .predict-btn {
             padding: 15px 50px;
             font-size: 1.2em;
@@ -403,6 +461,23 @@
         </div>
         
         <div class="action-section">
+            <div class="filters-section">
+                <h3>🎯 Prediction Filters</h3>
+                <div class="filter-row">
+                    <div class="filter-item">
+                        <label for="skill-filter">Skill Level:</label>
+                        <select id="skill-filter" class="filter-select">
+                            <option value="">Any Skill Level</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="patch-filter">Game Patch:</label>
+                        <select id="patch-filter" class="filter-select">
+                            <option value="">Any Patch</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <button class="predict-btn" id="predict-btn" onclick="getPredictions()">
                 🤖 Get Hero Recommendations
             </button>
@@ -447,6 +522,7 @@
         // Initialize the application
         async function init() {
             await loadHeroes();
+            await loadMetadata();
             setupHeroSlots();
         }
         
@@ -466,6 +542,45 @@
                 console.error('Error loading heroes:', error);
                 showError('Failed to connect to server');
             }
+        }
+        
+        // Load metadata for filters
+        async function loadMetadata() {
+            try {
+                const response = await fetch('/api/metadata');
+                const data = await response.json();
+                
+                if (data.success) {
+                    setupFilters(data.metadata);
+                } else {
+                    console.warn('Failed to load metadata, filters disabled');
+                }
+            } catch (error) {
+                console.warn('Error loading metadata:', error);
+            }
+        }
+        
+        // Setup filter dropdowns
+        function setupFilters(metadata) {
+            // Setup skill level filter
+            const skillFilter = document.getElementById('skill-filter');
+            metadata.skill_levels.forEach(skill => {
+                const option = document.createElement('option');
+                option.value = skill.value;
+                option.textContent = skill.label;
+                skillFilter.appendChild(option);
+            });
+            
+            // Setup patch filter  
+            const patchFilter = document.getElementById('patch-filter');
+            metadata.patches.forEach(patch => {
+                const option = document.createElement('option');
+                option.value = patch.value;
+                option.textContent = patch.label;
+                patchFilter.appendChild(option);
+            });
+            
+            console.log('Filters loaded successfully');
         }
         
         // Setup hero selection slots
@@ -566,6 +681,10 @@
             const teamHeroes = selectedHeroes.team.filter(h => h !== null);
             const enemyHeroes = selectedHeroes.enemy.filter(h => h !== null);
             
+            // Get filter values
+            const skillLevel = document.getElementById('skill-filter').value || null;
+            const patch = document.getElementById('patch-filter').value || null;
+            
             // Validate input
             if (teamHeroes.length === 0 && enemyHeroes.length === 0) {
                 showError('Please select at least one hero');
@@ -583,16 +702,22 @@
             hideRecommendations();
             
             try {
+                const requestBody = {
+                    team_heroes: teamHeroes,
+                    enemy_heroes: enemyHeroes,
+                    top_k: 5
+                };
+                
+                // Add filters if selected
+                if (skillLevel) requestBody.skill_level = skillLevel;
+                if (patch) requestBody.patch = patch;
+                
                 const response = await fetch('/api/predict', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        team_heroes: teamHeroes,
-                        enemy_heroes: enemyHeroes,
-                        top_k: 5
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const data = await response.json();

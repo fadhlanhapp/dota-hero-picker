@@ -166,7 +166,7 @@ class HeroPredictorService:
         
         return features_df
     
-    def predict_heroes(self, team_heroes: List[int], enemy_heroes: List[int], top_k: int = 5) -> List[Dict]:
+    def predict_heroes(self, team_heroes: List[int], enemy_heroes: List[int], top_k: int = 5, skill_level: str = None, patch: str = None) -> List[Dict]:
         """
         Predict best heroes for the given team composition
         
@@ -174,6 +174,8 @@ class HeroPredictorService:
             team_heroes: List of hero IDs on your team
             enemy_heroes: List of hero IDs on enemy team
             top_k: Number of top recommendations to return
+            skill_level: Skill bracket filter ("Normal", "High", "Very High")
+            patch: Game patch filter (e.g. "7.35")
         
         Returns:
             List of recommended heroes with probabilities
@@ -278,6 +280,26 @@ class HeroPredictorService:
         except Exception as e:
             self.logger.error(f"Prediction failed: {e}")
             raise
+    
+    def get_metadata(self) -> Dict:
+        """Get available metadata for filtering"""
+        return {
+            'skill_levels': [
+                {'value': 'Normal', 'label': 'Normal Skill (0-3200 MMR)'},
+                {'value': 'High', 'label': 'High Skill (3200-3700 MMR)'},
+                {'value': 'Very High', 'label': 'Very High Skill (3700+ MMR)'}
+            ],
+            'patches': [
+                {'value': '7.35', 'label': '7.35 (Current)'},
+                {'value': '7.34', 'label': '7.34'},
+                {'value': '7.33', 'label': '7.33'},
+                {'value': '7.32', 'label': '7.32'}
+            ],
+            'filters_info': {
+                'skill_level': 'Filter predictions based on player skill bracket',
+                'patch': 'Filter predictions based on game version'
+            }
+        }
     
     def get_hero_by_id(self, hero_id: int) -> Optional[Dict]:
         """Get hero information by ID"""
