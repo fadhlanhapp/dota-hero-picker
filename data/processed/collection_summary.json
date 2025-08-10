@@ -1,0 +1,26 @@
+{
+  "collection_stats": {
+    "api_calls_made": 12,
+    "matches_collected": 9,
+    "matches_filtered": 1,
+    "errors": 0,
+    "start_time": "2025-08-10 13:24:03.020971"
+  },
+  "duration_seconds": 15.406449,
+  "duration_formatted": "0:00:15.406449",
+  "matches_collected": 9,
+  "estimated_cost": 0.0012000000000000001,
+  "success_rate": 75.0,
+  "matches_per_hour": 2103.0154320440743,
+  "config_used": {
+    "target_matches": 10,
+    "rate_limit_delay": 1,
+    "valid_game_modes": [
+      2,
+      3,
+      22
+    ],
+    "min_duration": 600,
+    "max_duration": 7200
+  }
+}

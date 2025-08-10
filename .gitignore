@@ -1,0 +1,46 @@
+# Environment files
+.env
+*.env
+
+# Data files (too large for git)
+data/raw/*.json
+data/processed/*.csv
+data/logs/*.log
+*.pkl
+*.joblib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model files
+models/*.pkl
+models/*.joblib
+
+# Temporary files
+*.tmp
+temp_*
+matches_temp_*
+
+# Logs
+*.log
