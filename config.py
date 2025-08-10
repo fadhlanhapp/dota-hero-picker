@@ -9,7 +9,7 @@ class Config:
     BASE_URL = "https://api.opendota.com/api"
     
     # Rate Limiting
-    RATE_LIMIT_DELAY = int(os.getenv('RATE_LIMIT_DELAY', 1))
+    RATE_LIMIT_DELAY = float(os.getenv('RATE_LIMIT_DELAY', 1))
     MAX_RETRIES = int(os.getenv('MAX_RETRIES', 3))
     TIMEOUT = 30
     

@@ -31,11 +31,11 @@ class OpenDotaCollector:
         # Setup headers - OpenDota uses API key as parameter, not header
         self.api_key = self.config.OPENDOTA_API_KEY
         
+        # Create directories first (before logging setup)
+        self._create_directories()
+        
         # Setup logging
         self._setup_logging()
-        
-        # Create directories
-        self._create_directories()
         
         # Statistics
         self.stats = {
