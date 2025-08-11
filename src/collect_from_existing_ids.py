@@ -13,6 +13,8 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Optional
 import glob
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # Load environment variables from .env file
 try:
@@ -32,7 +34,8 @@ class MatchDetailCollector:
         self.delay_between_calls = 0.05 if self.api_key else 0.5  # 20 calls/sec with API key
         self.session = requests.Session()
         
-        # Statistics
+        # Thread-safe statistics
+        self.stats_lock = threading.Lock()
         self.stats = {
             'requests_made': 0,
             'matches_collected': 0,
@@ -117,12 +120,15 @@ class MatchDetailCollector:
         
         try:
             response = self.session.get(url, params=params, timeout=15)
-            self.stats['requests_made'] += 1
+            
+            with self.stats_lock:
+                self.stats['requests_made'] += 1
             
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 429:
-                self.stats['rate_limited'] += 1
+                with self.stats_lock:
+                    self.stats['rate_limited'] += 1
                 self.logger.warning(f"Rate limited (total: {self.stats['rate_limited']}), waiting 10 seconds...")
                 time.sleep(10)  # Shorter wait on rate limit
                 return None
@@ -135,15 +141,16 @@ class MatchDetailCollector:
             self.logger.debug(f"API error: {e}")
             return None
     
-    def collect_match_details(self, match_ids: List[int], resume_from: int = 0) -> List[Dict]:
+    def collect_match_details(self, match_ids: List[int], resume_from: int = 0, max_workers: int = 5) -> List[Dict]:
         """
-        Collect match details with resume capability
+        Collect match details with parallel processing and resume capability
         
         Args:
             match_ids: List of match IDs to collect
             resume_from: Index to resume from (for interrupted collections)
+            max_workers: Number of parallel threads
         """
-        self.logger.info(f"📥 Collecting details for {len(match_ids)} matches...")
+        self.logger.info(f"📥 Collecting details for {len(match_ids)} matches using {max_workers} threads...")
         
         if resume_from > 0:
             self.logger.info(f"📌 Resuming from match index {resume_from}")
@@ -167,38 +174,52 @@ class MatchDetailCollector:
             except:
                 pass
         
-        # Progress bar
-        pbar = tqdm(match_ids, desc="Collecting match details")
-        
-        for i, match_id in enumerate(pbar):
-            # Fetch match detail
+        def fetch_match_detail(match_id: int) -> Optional[Dict]:
+            """Fetch single match detail with rate limiting"""
+            time.sleep(self.delay_between_calls)  # Rate limiting per thread
+            
             match_data = self._make_api_call(f"matches/{match_id}")
             
             if match_data and self._is_valid_match(match_data):
-                essential_data = self._extract_essential_data(match_data)
-                detailed_matches.append(essential_data)
-                self.stats['matches_collected'] += 1
-            else:
-                failed_matches.append(match_id)
+                with self.stats_lock:
+                    self.stats['matches_collected'] += 1
+                return self._extract_essential_data(match_data)
+            return None
+        
+        # Use ThreadPoolExecutor for parallel processing
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_match_id = {
+                executor.submit(fetch_match_detail, match_id): match_id 
+                for match_id in match_ids
+            }
             
-            # Update progress
-            pbar.set_postfix({
-                'collected': self.stats['matches_collected'],
-                'failed': len(failed_matches),
-                'rate_limited': self.stats['rate_limited']
-            })
+            # Progress bar
+            pbar = tqdm(total=len(match_ids), desc="Fetching match details")
             
-            # Save periodically (every 100 matches)
-            if (i + 1) % 100 == 0:
-                self._save_incremental(detailed_matches)
-                self.logger.info(f"💾 Saved checkpoint: {len(detailed_matches)} matches")
-            
-            # Rate limiting
-            time.sleep(self.delay_between_calls)
-            
-            # Extra delay every 200 requests to be safe
-            if (i + 1) % 200 == 0:
-                time.sleep(1)  # 1 second break
+            # Process completed requests
+            for future in as_completed(future_to_match_id):
+                match_id = future_to_match_id[future]
+                
+                try:
+                    result = future.result()
+                    if result:
+                        detailed_matches.append(result)
+                    else:
+                        failed_matches.append(match_id)
+                except Exception as e:
+                    failed_matches.append(match_id)
+                
+                pbar.update(1)
+                pbar.set_postfix({
+                    'valid': len(detailed_matches),
+                    'failed': len(failed_matches),
+                    'success_rate': f"{len(detailed_matches)/(len(detailed_matches)+len(failed_matches))*100:.1f}%"
+                })
+                
+                # Save periodically (every 100 matches)
+                if len(detailed_matches) % 100 == 0:
+                    self._save_incremental(detailed_matches)
         
         pbar.close()
         
@@ -262,6 +283,7 @@ def main():
     parser = argparse.ArgumentParser(description='Collect match details from existing IDs')
     parser.add_argument('--limit', type=int, help='Limit number of matches to collect')
     parser.add_argument('--resume', type=int, default=0, help='Resume from index')
+    parser.add_argument('--workers', type=int, default=5, help='Number of parallel workers')
     
     args = parser.parse_args()
     
@@ -284,7 +306,7 @@ def main():
             print(f"📊 Limited to {args.limit} matches")
         
         # Collect details
-        matches = collector.collect_match_details(match_ids, args.resume)
+        matches = collector.collect_match_details(match_ids, args.resume, args.workers)
         
         # Summary
         duration = datetime.now() - collector.stats['start_time']
