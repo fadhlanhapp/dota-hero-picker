@@ -20,7 +20,7 @@ class HighSpeedCollector:
     
     def __init__(self):
         # Rate limiting: 1200 calls/minute = 20/second
-        self.max_calls_per_second = 10  # Slightly under limit for safety
+        self.max_calls_per_second = 5  # Slightly under limit for safety
         self.delay_between_calls = 1.0 / self.max_calls_per_second  # ~0.055 seconds
         
         self.session = requests.Session()
