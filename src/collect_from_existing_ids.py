@@ -14,6 +14,13 @@ from datetime import datetime
 from typing import List, Dict, Optional
 import glob
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # This loads .env file into environment
+except ImportError:
+    pass  # dotenv not available, use system env vars only
+
 class MatchDetailCollector:
     """Collect match details from existing match IDs with conservative rate limiting"""
     
