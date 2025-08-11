@@ -28,8 +28,8 @@ class MatchDetailCollector:
         # Get API key from environment
         self.api_key = os.getenv('OPENDOTA_API_KEY')
         
-        # Conservative rate limiting to avoid 429 errors
-        self.delay_between_calls = 0.2 if self.api_key else 0.5  # Faster with API key
+        # Faster rate limiting with API key
+        self.delay_between_calls = 0.067 if self.api_key else 0.5  # 15 calls/sec with API key
         self.session = requests.Session()
         
         # Statistics
@@ -196,9 +196,9 @@ class MatchDetailCollector:
             # Rate limiting
             time.sleep(self.delay_between_calls)
             
-            # Extra delay every 50 requests to be safe
-            if (i + 1) % 50 == 0:
-                time.sleep(5)  # 5 second break
+            # Extra delay every 100 requests to be safe
+            if (i + 1) % 100 == 0:
+                time.sleep(2)  # 2 second break (reduced from 5)
         
         pbar.close()
         
