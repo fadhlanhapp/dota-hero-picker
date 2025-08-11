@@ -28,8 +28,8 @@ class MatchDetailCollector:
         # Get API key from environment
         self.api_key = os.getenv('OPENDOTA_API_KEY')
         
-        # Faster rate limiting with API key
-        self.delay_between_calls = 0.067 if self.api_key else 0.5  # 15 calls/sec with API key
+        # High-speed rate limiting with API key  
+        self.delay_between_calls = 0.05 if self.api_key else 0.5  # 20 calls/sec with API key
         self.session = requests.Session()
         
         # Statistics
@@ -123,8 +123,8 @@ class MatchDetailCollector:
                 return response.json()
             elif response.status_code == 429:
                 self.stats['rate_limited'] += 1
-                self.logger.warning(f"Rate limited (total: {self.stats['rate_limited']}), waiting 30 seconds...")
-                time.sleep(30)  # Long wait on rate limit
+                self.logger.warning(f"Rate limited (total: {self.stats['rate_limited']}), waiting 10 seconds...")
+                time.sleep(10)  # Shorter wait on rate limit
                 return None
             elif response.status_code == 404:
                 return None  # Match not found
@@ -196,9 +196,9 @@ class MatchDetailCollector:
             # Rate limiting
             time.sleep(self.delay_between_calls)
             
-            # Extra delay every 100 requests to be safe
-            if (i + 1) % 100 == 0:
-                time.sleep(2)  # 2 second break (reduced from 5)
+            # Extra delay every 200 requests to be safe
+            if (i + 1) % 200 == 0:
+                time.sleep(1)  # 1 second break
         
         pbar.close()
         
