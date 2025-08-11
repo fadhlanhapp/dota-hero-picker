@@ -18,12 +18,29 @@ import threading
 class HighSpeedCollector:
     """High-speed collector maximizing API rate limits"""
     
-    def __init__(self):
+    def __init__(self, api_key: str = None):
+        # Get API key from environment if not provided
+        if not api_key:
+            api_key = os.getenv('OPENDOTA_API_KEY')
+        
         # Rate limiting: 1200 calls/minute = 20/second
-        self.max_calls_per_second = 2  # Slightly under limit for safety
-        self.delay_between_calls = 1.0 / self.max_calls_per_second  # ~0.055 seconds
+        self.max_calls_per_second = 15 if api_key else 2  # Higher with API key
+        self.delay_between_calls = 1.0 / self.max_calls_per_second
         
         self.session = requests.Session()
+        self.api_key = api_key
+        
+        # Setup logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+        self.logger = logging.getLogger(__name__)
+        
+        if api_key:
+            self.logger.info(f"🔑 Using API key (ending in ...{api_key[-4:]}) - higher rate limits enabled")
+        else:
+            self.logger.warning("⚠️ No API key found in OPENDOTA_API_KEY env var - using conservative rate limits")
         
         # Thread-safe statistics
         self.stats_lock = threading.Lock()
@@ -34,17 +51,17 @@ class HighSpeedCollector:
             'start_time': datetime.now()
         }
         
-        # Setup logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
-        )
-        self.logger = logging.getLogger(__name__)
         self.logger.info(f"High-speed collector initialized - {self.max_calls_per_second} calls/second max")
     
     def _make_api_call(self, endpoint: str, params: dict = None) -> Optional[Dict]:
         """Thread-safe API call with proper rate limiting"""
         url = f"https://api.opendota.com/api/{endpoint}"
+        
+        # Add API key to request if available
+        if self.api_key:
+            if params is None:
+                params = {}
+            params['api_key'] = self.api_key
         
         try:
             response = self.session.get(url, params=params, timeout=10)
@@ -280,11 +297,12 @@ def main():
     parser = argparse.ArgumentParser(description='High-speed Dota 2 data collection')
     parser.add_argument('--matches', type=int, default=1000, help='Total matches to collect')
     parser.add_argument('--workers', type=int, default=20, help='Parallel workers')
+    parser.add_argument('--api-key', type=str, help='OpenDota API key for higher rate limits')
     
     args = parser.parse_args()
     
     try:
-        collector = HighSpeedCollector()
+        collector = HighSpeedCollector(api_key=args.api_key)
         matches = collector.collect_fast(args.matches)
         
         if matches:

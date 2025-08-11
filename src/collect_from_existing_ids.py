@@ -18,8 +18,11 @@ class MatchDetailCollector:
     """Collect match details from existing match IDs with conservative rate limiting"""
     
     def __init__(self):
+        # Get API key from environment
+        self.api_key = os.getenv('OPENDOTA_API_KEY')
+        
         # Conservative rate limiting to avoid 429 errors
-        self.delay_between_calls = 0.5  # 2 calls per second (very safe)
+        self.delay_between_calls = 0.2 if self.api_key else 0.5  # Faster with API key
         self.session = requests.Session()
         
         # Statistics
@@ -36,6 +39,11 @@ class MatchDetailCollector:
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         self.logger = logging.getLogger(__name__)
+        
+        if self.api_key:
+            self.logger.info(f"🔑 Using API key (ending in ...{self.api_key[-4:]}) - faster collection enabled")
+        else:
+            self.logger.warning("⚠️ No API key found in OPENDOTA_API_KEY env var - using conservative rate limits")
     
     def load_existing_match_ids(self) -> List[int]:
         """Load match IDs from existing files"""
@@ -95,8 +103,13 @@ class MatchDetailCollector:
         """Make API call with conservative rate limiting"""
         url = f"https://api.opendota.com/api/{endpoint}"
         
+        # Add API key if available
+        params = {}
+        if self.api_key:
+            params['api_key'] = self.api_key
+        
         try:
-            response = self.session.get(url, timeout=15)
+            response = self.session.get(url, params=params, timeout=15)
             self.stats['requests_made'] += 1
             
             if response.status_code == 200:
