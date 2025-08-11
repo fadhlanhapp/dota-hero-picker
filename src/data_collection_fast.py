@@ -20,7 +20,7 @@ class HighSpeedCollector:
     
     def __init__(self):
         # Rate limiting: 1200 calls/minute = 20/second
-        self.max_calls_per_second = 5  # Slightly under limit for safety
+        self.max_calls_per_second = 2  # Slightly under limit for safety
         self.delay_between_calls = 1.0 / self.max_calls_per_second  # ~0.055 seconds
         
         self.session = requests.Session()
@@ -120,6 +120,13 @@ class HighSpeedCollector:
         pbar.close()
         match_ids_list = list(match_ids)[:count]
         self.logger.info(f"✅ Collected {len(match_ids_list)} unique match IDs")
+        
+        # Save match IDs to file for future use
+        os.makedirs('data/raw', exist_ok=True)
+        with open('data/raw/match_ids.json', 'w') as f:
+            json.dump(match_ids_list, f)
+        self.logger.info(f"💾 Saved match IDs to data/raw/match_ids.json")
+        
         return match_ids_list
     
     def collect_match_details_parallel(self, match_ids: List[int], max_workers: int = 20) -> List[Dict]:
