@@ -26,11 +26,14 @@ class HeroPredictorService:
         self.logger = logging.getLogger(__name__)
         self.config = Config()
         
-        # Set paths
-        self.model_path = model_path or f"{self.config.MODELS_DIR}/hero_predictor_random_forest_fixed.pkl"
+        # Set paths - prioritize categorical model
+        self.model_path = model_path or f"{self.config.MODELS_DIR}/hero_predictor_categorical.pkl"
         if not os.path.exists(self.model_path):
-            # Fallback to original model if fixed version doesn't exist
-            self.model_path = f"{self.config.MODELS_DIR}/hero_predictor_random_forest.pkl"
+            # Fallback to fixed model
+            self.model_path = f"{self.config.MODELS_DIR}/hero_predictor_random_forest_fixed.pkl"
+            if not os.path.exists(self.model_path):
+                # Fallback to original model if fixed version doesn't exist
+                self.model_path = f"{self.config.MODELS_DIR}/hero_predictor_random_forest.pkl"
         
         self.heroes_path = heroes_path or f"{self.config.RAW_DIR}/heroes.json"
         
@@ -113,21 +116,32 @@ class HeroPredictorService:
         
         return sorted(heroes_list, key=lambda x: x['name'])
     
-    def _create_features(self, team_heroes: List[int], enemy_heroes: List[int]) -> pd.DataFrame:
-        """Create feature vector matching the training format"""
+    def _create_features(self, team_heroes: List[int], enemy_heroes: List[int], team_picking: str = 'radiant') -> pd.DataFrame:
+        """Create feature vector matching the new categorical model training format"""
         # Initialize feature dictionary
         features = {}
         
-        # Basic features
-        features['duration'] = 1800  # Average game duration in seconds (30 min)
-        features['team_won'] = 0  # Neutral for prediction
-        features['team_size'] = len(team_heroes)
-        features['enemy_size'] = len(enemy_heroes)
+        # Determine pick number based on total heroes picked
+        total_picked = len(team_heroes) + len(enemy_heroes)
+        features['pick_number'] = min(total_picked + 1, 10)
+        features['team_picking'] = 1 if team_picking == 'radiant' else 0
+        features['skill'] = 0  # Default skill level
+        features['avg_mmr'] = 3500  # Default MMR
+        features['patch'] = 58  # Default patch
         
-        # Team and enemy hero slots (pad with 0 for empty slots)
-        for i in range(4):
-            features[f'team_hero_{i+1}'] = str(team_heroes[i]) if i < len(team_heroes) else 'none'
-            features[f'enemy_hero_{i+1}'] = str(enemy_heroes[i]) if i < len(enemy_heroes) else 'none'
+        # Simulate draft order to fill pick slots
+        # Draft order: R-D-D-R-R-D-D-R-R-D
+        radiant_heroes = team_heroes if team_picking == 'radiant' else enemy_heroes
+        dire_heroes = enemy_heroes if team_picking == 'radiant' else team_heroes
+        
+        # Add radiant and dire picks (as strings for categorical encoding)
+        for i in range(5):
+            features[f'radiant_pick_{i+1}'] = str(radiant_heroes[i]) if i < len(radiant_heroes) else 'none'
+            features[f'dire_pick_{i+1}'] = str(dire_heroes[i]) if i < len(dire_heroes) else 'none'
+        
+        # Add pick counts
+        features['ally_picks_count'] = len(team_heroes)
+        features['enemy_picks_count'] = len(enemy_heroes)
         
         # Role counts (simplified - in production, use actual role data)
         features['team_carry_count'] = 0
@@ -166,7 +180,7 @@ class HeroPredictorService:
         
         return features_df
     
-    def predict_heroes(self, team_heroes: List[int], enemy_heroes: List[int], top_k: int = 5, skill_level: str = None, patch: str = None) -> List[Dict]:
+    def predict_heroes(self, team_heroes: List[int], enemy_heroes: List[int], top_k: int = 5, skill_level: str = None, patch: str = None, team_picking: str = 'radiant') -> List[Dict]:
         """
         Predict best heroes for the given team composition
         
@@ -194,65 +208,69 @@ class HeroPredictorService:
             
             predictions = []
             
-            # For each available hero, calculate win probability
-            for hero_id in available_heroes:
-                try:
-                    # Create features for this scenario
-                    features_df = self._create_features(team_heroes, enemy_heroes)
+            # Create features for current game state
+            try:
+                features_df = self._create_features(team_heroes, enemy_heroes, team_picking)
+                
+                # Apply preprocessing if available
+                if self.preprocessor is not None:
+                    # Convert hero IDs to strings for categorical encoding
+                    hero_cols = [col for col in features_df.columns if 'pick' in col]
+                    for col in hero_cols:
+                        features_df[col] = features_df[col].replace('0', 'none')
                     
-                    # Apply preprocessing if available
-                    if self.preprocessor is not None:
-                        # Handle categorical encoding
-                        features_processed = self.preprocessor.transform(features_df)
+                    # Transform features
+                    features_processed = self.preprocessor.transform(features_df)
+                    
+                    # Convert sparse to dense if needed
+                    if hasattr(features_processed, 'toarray'):
+                        features_processed = features_processed.toarray()
+                else:
+                    features_processed = features_df
+                
+                # Get predictions for all heroes at once
+                if hasattr(self.model, 'predict_proba'):
+                    probabilities = self.model.predict_proba(features_processed)[0]
+                    
+                    # Map probabilities to hero IDs
+                    for i, hero_id in enumerate(self.label_encoder.classes_):
+                        if hero_id not in picked_heroes and hero_id in self.all_hero_ids:
+                            hero_name = self.hero_names.get(hero_id, f'Hero_{hero_id}')
+                            hero_info = next((h for h in self.hero_data if h['id'] == hero_id), {})
+                            
+                            predictions.append({
+                                'hero_id': int(hero_id),
+                                'hero_name': hero_name,
+                                'win_probability': float(probabilities[i]),
+                                'confidence': float(probabilities[i] * 100),
+                                'primary_attr': hero_info.get('primary_attr', 'unknown'),
+                                'roles': hero_info.get('roles', []),
+                                'img': f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/{hero_info.get('name', '').replace('npc_dota_hero_', '')}_lg.png"
+                            })
+                else:
+                    # Fallback: Model doesn't support probabilities
+                    self.logger.warning("Model doesn't support predict_proba, using single prediction")
+                    prediction = self.model.predict(features_processed)[0]
+                    hero_id = self.label_encoder.inverse_transform([prediction])[0]
+                    
+                    if hero_id not in picked_heroes:
+                        hero_name = self.hero_names.get(hero_id, f'Hero_{hero_id}')
+                        hero_info = next((h for h in self.hero_data if h['id'] == hero_id), {})
                         
-                        # Convert to DataFrame with correct column names
-                        if hasattr(self.preprocessor, 'get_feature_names_out'):
-                            feature_names = self.preprocessor.get_feature_names_out()
-                        else:
-                            feature_names = self.feature_columns
-                        
-                        if len(feature_names) > 0:
-                            features_processed = pd.DataFrame(
-                                features_processed, 
-                                columns=feature_names[:features_processed.shape[1]]
-                            )
-                    else:
-                        features_processed = features_df
+                        predictions.append({
+                            'hero_id': int(hero_id),
+                            'hero_name': hero_name,
+                            'win_probability': 1.0,
+                            'confidence': 100.0,
+                            'primary_attr': hero_info.get('primary_attr', 'unknown'),
+                            'roles': hero_info.get('roles', []),
+                            'img': f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/{hero_info.get('name', '').replace('npc_dota_hero_', '')}_lg.png"
+                        })
                     
-                    # Make prediction
-                    if hasattr(self.model, 'predict_proba'):
-                        # Get probability for each class
-                        probabilities = self.model.predict_proba(features_processed)[0]
-                        
-                        # Find if this hero is in the label encoder
-                        if hero_id in self.label_encoder.classes_:
-                            hero_idx = np.where(self.label_encoder.classes_ == hero_id)[0][0]
-                            win_prob = probabilities[hero_idx] if hero_idx < len(probabilities) else 0.0
-                        else:
-                            # Hero not in training data, use average probability
-                            win_prob = np.mean(probabilities)
-                    else:
-                        # Model doesn't support probabilities, use binary prediction
-                        prediction = self.model.predict(features_processed)[0]
-                        win_prob = 1.0 if prediction == hero_id else 0.0
-                    
-                    # Get hero info
-                    hero_name = self.hero_names.get(hero_id, f'Hero_{hero_id}')
-                    hero_info = next((h for h in self.hero_data if h['id'] == hero_id), {})
-                    
-                    predictions.append({
-                        'hero_id': int(hero_id),
-                        'hero_name': hero_name,
-                        'win_probability': float(win_prob),
-                        'confidence': float(win_prob * 100),
-                        'primary_attr': hero_info.get('primary_attr', 'unknown'),
-                        'roles': hero_info.get('roles', []),
-                        'img': f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/{hero_info.get('name', '').replace('npc_dota_hero_', '')}_lg.png"
-                    })
-                    
-                except Exception as e:
-                    self.logger.debug(f"Failed to predict for hero {hero_id}: {e}")
-                    continue
+            except Exception as e:
+                self.logger.error(f"Failed to generate predictions: {e}")
+                import traceback
+                traceback.print_exc()
             
             # Sort by win probability and return top k
             predictions.sort(key=lambda x: x['win_probability'], reverse=True)

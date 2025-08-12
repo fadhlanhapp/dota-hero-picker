@@ -42,3 +42,6 @@ matches_temp_*
 
 # Logs
 *.log
+
+diagnose_and_fix_model.py
+train_model_properly.py
