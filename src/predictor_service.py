@@ -68,8 +68,8 @@ class HeroPredictorService:
             self.feature_columns = model_data.get('feature_columns', [])
             self.hero_names = model_data.get('hero_names', {})
             
-            # Check if model is trained
-            if not model_data.get('is_trained', False):
+            # Check if model is trained (new models might not have this flag)
+            if not model_data.get('is_trained', True):  # Default to True for compatibility
                 raise ValueError("Model is not trained")
             
             self.logger.info(f"Model loaded successfully. Type: {model_data.get('model_type', 'unknown')}")
